@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Search, Download, Calendar, Wrench, CheckCircle, Clock, Repeat, History, Package, IndianRupee, MessageCircle, User, LayoutList, Send } from 'lucide-react';
+import { Search, Download, Calendar, Wrench, CheckCircle, Clock, Repeat, History, Package, IndianRupee, MessageCircle, User, LayoutList, Send, Trash2, Phone } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { collection, onSnapshot, query, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase/firebase'; // Ensure this path is correct
 
 const CURRENT_ADMIN_ID = 'ADMIN-001';
@@ -39,9 +39,9 @@ export default function AdminServices() {
     }, {});
   }, [services]);
 
-  // 3. Filtering Logic
+  // 3. Filtering & Sorting Logic
   const filteredServices = useMemo(() => {
-    return services.filter(service => {
+    const filtered = services.filter(service => {
       // 🚀 ONLY SHOW CARDS WITH DATA (Hide empty QR printed docs)
       if (!service.customerName) return false;
 
@@ -67,6 +67,14 @@ export default function AdminServices() {
       
       return matchesSearch && matchesStatus && matchesMonth && matchesRepeat;
     });
+
+    // --- Sort Newest First ---
+    return filtered.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis?.() || new Date(a.receivedAt || a.receivedDate || 0).getTime() || 0;
+      const timeB = b.createdAt?.toMillis?.() || new Date(b.receivedAt || b.receivedDate || 0).getTime() || 0;
+      return timeB - timeA;
+    });
+
   }, [services, activeSection, searchTerm, statusFilter, monthFilter, customDate, showRepeated, phoneCounts]);
 
   // 4. Dynamic Chart Data
@@ -108,6 +116,18 @@ export default function AdminServices() {
     await updateDoc(doc(db, "services", service.id), { clientMessaged: true });
   };
 
+  const handleDelete = async (e, id) => {
+    e.stopPropagation(); // Prevents card click navigation
+    if (window.confirm("Are you sure you want to delete this service record?")) {
+      try {
+        await deleteDoc(doc(db, "services", id));
+      } catch (error) {
+        console.error("Error deleting document:", error);
+        alert("Failed to delete service.");
+      }
+    }
+  };
+
   const StatusBadge = ({ status }) => {
     const configs = {
       pending: { color: 'text-orange-700', bg: 'bg-orange-100', icon: Clock, label: 'Pending' },
@@ -124,6 +144,16 @@ export default function AdminServices() {
         {config.label}
       </span>
     );
+  };
+
+  const getCardStyle = (status) => {
+    switch(status) {
+      case 'pending': return 'border-orange-200 bg-orange-50/40';
+      case 'in_progress': return 'border-blue-200 bg-blue-50/40';
+      case 'completed': return 'border-emerald-200 bg-emerald-50/40';
+      case 'delivered': return 'border-purple-200 bg-purple-50/40';
+      default: return 'border-gray-50 bg-white';
+    }
   };
 
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -190,21 +220,29 @@ export default function AdminServices() {
 
           <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
             {filteredServices.map(service => (
-              <motion.div key={service.id} variants={itemVariant} onClick={() => activeSection !== 'pending_msg' && navigate(`/admin/service/${service.id}`)} className={`bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50 transition-transform ${activeSection !== 'pending_msg' ? 'active:scale-[0.98] cursor-pointer' : ''}`}>
+              <motion.div 
+                key={service.id} 
+                variants={itemVariant} 
+                onClick={() => activeSection !== 'pending_msg' && navigate(`/admin/service/${service.id}`)} 
+                className={`p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border transition-transform ${getCardStyle(service.status)} ${activeSection !== 'pending_msg' ? 'active:scale-[0.98] cursor-pointer' : ''}`}
+              >
                 
-                {/* Header: ID, Name, Status */}
+                {/* Header: ID, Name, Status & Delete */}
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{service.id}</span>
                     <h3 className="text-base font-bold text-gray-900 mt-0.5">{service.customerName}</h3>
                   </div>
-                  <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex items-center gap-2">
                     <StatusBadge status={service.status} />
+                    <button onClick={(e) => handleDelete(e, service.id)} className="p-1 text-gray-400 hover:text-red-500 bg-white rounded-md shadow-sm transition-colors active:scale-95">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
                 {/* 🚀 NEW DETAILS GRID */}
-                <div className="grid grid-cols-2 gap-y-2 mt-3 text-xs font-medium border-t border-gray-50 pt-3">
+                <div className="grid grid-cols-2 gap-y-2 mt-3 text-xs font-medium border-t border-gray-200/50 pt-3">
                   <div className="text-gray-500">
                     Item: <span className="text-gray-900 font-bold ml-1">{service.productType || service.item || 'N/A'}</span>
                   </div>
@@ -212,11 +250,15 @@ export default function AdminServices() {
                     <Calendar className="w-3.5 h-3.5" />
                     <span className="text-gray-900 font-bold">{service.receivedAt || service.receivedDate || 'N/A'}</span>
                   </div>
-                  <div className="text-gray-500">
-                    Brand: <span className="text-gray-900 font-bold ml-1">{service.productBrand || 'N/A'}</span>
+                  <div className="text-gray-500 flex items-center gap-1">
+                    <Phone className="w-3 h-3" />
+                    <span className="text-gray-900 font-bold">{service.customerPhone || service.phone || 'N/A'}</span>
                   </div>
                   <div className="text-gray-500 text-right">
                     Tech: <span className="text-gray-900 font-bold ml-1">{service.techName || service.tech || 'Unassigned'}</span>
+                  </div>
+                  <div className="col-span-2 text-gray-500 mt-1">
+                    Problem: <span className="text-gray-900 font-bold ml-1 line-clamp-2">{service.problem || 'Not specified'}</span>
                   </div>
                 </div>
 

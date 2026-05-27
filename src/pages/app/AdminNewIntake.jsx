@@ -1,436 +1,1324 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowLeft, User, Phone, MapPin, Package, Image as ImageIcon, Plus, Trash2, AlertCircle, Database, Settings, IndianRupee, MessageCircle, PhoneCall } from 'lucide-react';
+import React, {
+  useState,
+  useEffect,
+  useRef
+} from 'react';
+
+import {
+  motion,
+  AnimatePresence
+} from 'framer-motion';
+
+import {
+  X,
+  User,
+  Package,
+  Image as ImageIcon,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Database,
+  Settings,
+  Activity,
+  Phone,
+  MapPin,
+  IndianRupee,
+  MessageCircle,
+  PhoneCall,
+  Camera
+} from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
+
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase/firebase'; // Ensure path is correct
+import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
-export default function AdminScanner() {
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp
+} from 'firebase/firestore';
+
+import {
+  auth,
+  db
+} from '../../firebase/firebase';
+
+export default function TechScanner() {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
-  
-  // --- UI States ---
-  const [scanResult, setScanResult] = useState(null); // 'new' or 'existing'
-  const [isSaving, setIsSaving] = useState(false);
-  const [viewingImage, setViewingImage] = useState(null);
 
-  // --- Form State ---
-  const [formData, setFormData] = useState({
-    id: '',
-    status: 'pending',
-    receivedAt: new Date().toISOString().split('T')[0],
-    completedAt: '',
-    techName: 'admin',
-    techPhone: '9847512024',
-    customerName: '',
-    customerPhone: '',
-    customerLocation: '',
-    productBrand: '',
-    productType: '',
-    problem: '',
-    amount: '',
-    images: [],
-    inspectionPoints: []
-  });
+  const fileInputRef = useRef(null);
 
   const scannerStarted = useRef(false);
 
-useEffect(() => {
-  if (scannerStarted.current) return;
-  scannerStarted.current = true;
+  // =========================
+  // UI STATES
+  // =========================
+  const [scanResult, setScanResult] =
+    useState(null);
 
-  const startScanner = async () => {
-    try {
-      const { camera } = await BarcodeScanner.requestPermissions();
+  const [isSaving, setIsSaving] =
+    useState(false);
 
-      if (camera !== 'granted') {
-        alert("Camera permission denied");
-        navigate(-1);
-        return;
-      }
+  const [viewingImage, setViewingImage] =
+    useState(null);
 
-      const result = await BarcodeScanner.scan();
+  // Tracks if this task belongs to another technician
+  const [isOtherTech, setIsOtherTech] = useState(false);
 
-      // If cancelled
-      if (!result?.barcodes?.length) {
-        console.log("Scan cancelled");
-        return;
-      }
+  // =========================
+  // FORM DATA
+  // =========================
+  const [formData, setFormData] =
+    useState({
+      id: '',
 
-      const scannedId = result.barcodes[0].rawValue;
+      status: 'pending',
 
-      console.log("Scanned ID:", scannedId);
+      receivedAt:
+        new Date()
+          .toISOString()
+          .split('T')[0],
 
-      const docRef = doc(db, "services", scannedId);
+      completedAt: '',
 
-      const docSnap = await getDoc(docRef);
+      techName: '',
+      techPhone: '',
 
-      if (docSnap.exists()) {
-        console.log("Existing document found");
+      customerName: '',
+      customerPhone: '',
+      customerLocation: '',
 
-        setFormData(prev => ({
-  ...prev,
-  id: scannedId,
-  ...docSnap.data()
-}));
+      productBrand: '',
+      productType: '',
+      problem: '',
 
-        setScanResult("existing");
+      amount: '',
 
-      } else {
-        console.log("New document");
+      images: [],
 
-        setFormData(prev => ({
-          ...prev,
-          id: scannedId
-        }));
+      inspectionPoints: [],
 
-        setScanResult("new");
-      }
+      createdAt: null
+    });
 
-    } catch (err) {
+  // =========================
+  // CLOUDINARY UPLOAD
+  // =========================
+ const uploadToCloudinary = async (file) => {
 
-      // IMPORTANT
-      if (err?.message?.includes("scan canceled")) {
-        console.log("User cancelled scanning");
-        return;
-      }
+  const cloudName =
+    import.meta.env
+      .VITE_CLOUDINARY_CLOUD_NAME;
 
-      console.error("Scanner Error:", err);
+  const uploadPreset =
+    import.meta.env
+      .VITE_CLOUDINARY_UPLOAD_PRESET;
 
-      alert("Scanner failed");
+  const data = new FormData();
+
+  data.append('file', file);
+
+  data.append(
+    'upload_preset',
+    uploadPreset
+  );
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: 'POST',
+      body: data
     }
-  };
+  );
 
-  startScanner();
+  const uploaded =
+    await res.json();
 
-}, []);
-  // --- REAL QR SCANNER & FIREBASE INTEGRATION ---
-//  useEffect(() => {
-//   const startScanner = async () => {
-//     try {
-//       // Request permission
-//       const { camera } = await BarcodeScanner.requestPermissions();
+  console.log(uploaded);
 
-//       if (camera !== 'granted') {
-//         alert("Camera permission denied");
-//         navigate(-1);
-//         return;
-//       }
+  if (!uploaded.secure_url) {
+    throw new Error(
+      uploaded.error?.message ||
+      'Cloudinary upload failed'
+    );
+  }
 
-//       // Start scan
-//       const result = await BarcodeScanner.scan();
-
-//       // Cancel handling
-//       if (!result || !result.barcodes || result.barcodes.length === 0) {
-//         console.log('Scan cancelled');
-//         navigate('/admin/services');
-//         return;
-//       }
-
-//       const scannedId = result.barcodes[0].rawValue;
-//       console.log('Scanned ID:', scannedId);
-
-//       // Firebase lookup
-//       const docRef = doc(db, "services", scannedId);
-//       const docSnap = await getDoc(docRef);
-
-//       if (docSnap.exists()) {
-//         setFormData({ id: scannedId, ...docSnap.data() });
-//         setScanResult('existing');
-//       } else {
-//         setFormData(prev => ({
-//           ...prev,
-//           id: scannedId
-//         }));
-//         setScanResult('new');
-//       }
-
-//     } catch (err) {
-//       console.error('Scanner Error:', err);
-//       navigate('/admin/services');
-//     }
-//   };
-
-//   startScanner();
-// }, [navigate]);
-
-  // --- FORM HANDLERS ---
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  const handleStatusChange = (newStatus) => setFormData({ ...formData, status: newStatus });
+  return uploaded.secure_url;
+};
+  // =========================
+  // START SCANNER
+  // =========================
   
-  const handlePointChange = (index, value) => {
-    const updatedPoints = [...formData.inspectionPoints];
-    updatedPoints[index] = value;
-    setFormData(prev => ({ ...prev, inspectionPoints: updatedPoints }));
-  };
-  const addPoint = () => setFormData(prev => ({ ...prev, inspectionPoints: [...prev.inspectionPoints, ''] }));
-  const removePoint = (index) => setFormData(prev => ({ ...prev, inspectionPoints: prev.inspectionPoints.filter((_, i) => i !== index) }));
+  useEffect(() => {
+    if (scannerStarted.current) return;
 
-  // NATIVE DEVICE IMAGE UPLOAD
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      const newImages = files.map(file => URL.createObjectURL(file));
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
+    scannerStarted.current = true;
+
+    const startScanner = async () => {
+      try {
+        const { camera } =
+          await BarcodeScanner.requestPermissions();
+
+        if (camera !== 'granted') {
+          alert(
+            'Camera permission denied'
+          );
+
+          navigate(-1);
+
+          return;
+        }
+
+        const result =
+          await BarcodeScanner.scan();
+
+        // CANCEL
+        if (
+          !result?.barcodes?.length
+        ) {
+          navigate(-1);
+
+          return;
+        }
+
+        const scannedId =
+          result.barcodes[0].rawValue;
+
+        // =========================
+        // CURRENT USER
+        // =========================
+        const currentUser =
+          auth.currentUser;
+
+        let technicianName = '';
+        let technicianPhone = '';
+
+        if (currentUser) {
+          const techRef = doc(
+            db,
+            'technicians',
+            currentUser.uid
+          );
+
+          const techSnap =
+            await getDoc(techRef);
+
+          if (techSnap.exists()) {
+            const techData =
+              techSnap.data();
+
+            technicianName =
+              techData.fullName || '';
+
+            technicianPhone =
+              techData.phone || '';
+          }
+        }
+
+        // =========================
+        // CHECK SERVICE
+        // =========================
+        const serviceRef = doc(
+          db,
+          'services',
+          scannedId
+        );
+
+        const serviceSnap =
+          await getDoc(serviceRef);
+
+        // EXISTING
+        if (serviceSnap.exists()) {
+          const existingData =
+            serviceSnap.data();
+
+          // Check if existing task belongs to someone else
+          const otherTechClaimed = existingData.techName && technicianName && existingData.techName !== technicianName;
+          setIsOtherTech(otherTechClaimed);
+
+          setFormData(prev => ({
+            ...prev,
+            ...existingData,
+            id: scannedId,
+            status: existingData?.status ?? 'pending',            
+            receivedAt:
+              existingData.receivedAt ||
+              new Date().toISOString().split('T')[0],
+
+            completedAt:
+              existingData.completedAt || '',
+            techName:
+              otherTechClaimed ? existingData.techName : (existingData.techName || technicianName),
+
+            techPhone:
+              otherTechClaimed ? existingData.techPhone : (existingData.techPhone || technicianPhone),
+
+            images: (existingData.images || [])
+              .map(img => typeof img === 'string' ? img : img?.secure_url || img?.url)
+              .filter(Boolean),
+
+            inspectionPoints:
+              existingData.inspectionPoints ||
+              []
+          }));
+
+          setScanResult('existing');
+        }
+
+        
+        // NEW
+        else {
+
+          const today =
+            new Date()
+              .toISOString()
+              .split('T')[0];
+
+          setIsOtherTech(false);
+
+          setFormData(prev => ({
+            ...prev,
+            id: scannedId,
+
+            status: 'pending',
+
+            receivedAt: today,
+
+            completedAt: '',
+
+            techName: 'admin',
+
+            techPhone: '98475120214',
+
+            customerName: '',
+
+            customerPhone: '',
+
+            customerLocation: '',
+
+            productBrand: '',
+
+            productType: '',
+
+            problem: '',
+
+            amount: '',
+
+            images: [],
+
+            inspectionPoints: [],
+
+            createdAt: null
+          }));
+
+          setScanResult('new');
+        }
+      } catch (err) {
+        console.error(err);
+
+        navigate(-1);
+      }
+    };
+
+    startScanner();
+  }, [navigate]);
+
+  // =========================
+  // HANDLE INPUT
+  // =========================
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+
+      [e.target.name]:
+        e.target.value
+    });
+  };
+
+  // =========================
+  // STATUS
+  // =========================
+const handleStatusChange = (newStatus) => {
+  const current = formData.status;
+
+  const flow = ['pending', 'in_progress', 'completed', 'delivered'];
+
+  const currentIndex = flow.indexOf(current);
+  const newIndex = flow.indexOf(newStatus);
+
+  // prevent going backwards
+  if (newIndex < currentIndex) {
+    alert('You cannot move status backward');
+    return;
+  }
+
+  // enforce order skipping
+  if (newStatus === 'completed' && current !== 'in_progress') {
+    alert('Move to In Progress first');
+    return;
+  }
+
+  setFormData(prev => ({
+    ...prev,
+    status: newStatus,
+    completedAt:
+      newStatus === 'completed' || newStatus === 'delivered'
+        ? prev.completedAt || new Date().toISOString().split('T')[0]
+        : ''
+  }));
+};
+
+  // Dynamically resolve allowed statuses
+  let allowedStatuses = ['pending', 'in_progress', 'completed'];
+  if (formData.status === 'completed' || formData.status === 'delivered') {
+    allowedStatuses.push('delivered');
+  }
+  if (isOtherTech) {
+    allowedStatuses = [formData.status, 'delivered'];
+  }
+  allowedStatuses = [...new Set(allowedStatuses)]; 
+
+  // =========================
+  // NOTES
+  // =========================
+  const handlePointChange = (
+    index,
+    value
+  ) => {
+    const updated = [
+      ...(formData.inspectionPoints ||
+        [])
+    ];
+
+    updated[index] = value;
+
+    setFormData({
+      ...formData,
+      inspectionPoints: updated
+    });
+  };
+
+  const addPoint = () => {
+    setFormData({
+      ...formData,
+
+      inspectionPoints: [
+        ...(formData.inspectionPoints ||
+          []),
+
+        ''
+      ]
+    });
+  };
+
+  const removePoint = (index) => {
+    setFormData({
+      ...formData,
+
+      inspectionPoints:
+        (
+          formData.inspectionPoints ||
+          []
+        ).filter(
+          (_, i) => i !== index
+        )
+    });
+  };
+
+  // =========================
+  // IMAGE UPLOAD (GALLERY)
+  // =========================
+  const handleImageUpload =
+    async (e) => {
+      try {
+        const files = Array.from(
+          e.target.files
+        );
+
+        if (!files.length) return;
+
+        setIsSaving(true);
+
+        const uploadedUrls = [];
+
+        for (const file of files) {
+          const imageUrl =
+            await uploadToCloudinary(
+              file
+            );
+          
+          if(imageUrl) {
+            uploadedUrls.push(imageUrl);
+          }
+        }
+
+        setFormData((prev) => ({
+          ...prev,
+
+          images: [
+            ...(prev.images || []),
+
+            ...uploadedUrls
+          ]
+        }));
+      } catch (err) {
+        console.error(err);
+
+        alert(
+          'Image upload failed'
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+  // =========================
+  // IMAGE UPLOAD (CAMERA)
+  // =========================
+  const handleNativeImageUpload = async () => {
+    if (isOtherTech) return;
+    try {
+      const image = await CapacitorCamera.getPhoto({
+        quality: 70,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl, 
+        source: CameraSource.Camera 
+      });
+
+      setIsSaving(true);
+
+      const imageUrl = await uploadToCloudinary(image.dataUrl);
+
+      if (imageUrl) {
+        setFormData((prev) => ({
+          ...prev,
+          images: [
+            ...(prev.images || []),
+            imageUrl
+          ]
+        }));
+      }
+    } catch (err) {
+      if (err.message !== 'User cancelled photos app') {
+        console.error(err);
+        alert('Camera upload failed');
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
-  const removeImage = (indexToRemove) => setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== indexToRemove) }));
 
+  const removeImage = (index) => {
+    setFormData({
+      ...formData,
+
+      images: (
+        formData.images || []
+      ).filter(
+        (_, i) => i !== index
+      )
+    });
+  };
+
+  // =========================
   // COMMUNICATION
+  // =========================
   const handleWhatsApp = () => {
     const msg = `Hello ${formData.customerName}, your service for the ${formData.productBrand} ${formData.productType} (ID: ${formData.id}) is complete. Total Bill: ₹${formData.amount || 0}. Please collect it. Thanks, Techno Steel.`;
     window.open(`https://wa.me/91${formData.customerPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
-  const handleCall = () => window.open(`tel:${formData.customerPhone}`, '_self');
 
-  // --- FIREBASE SAVE LOGIC ---
-  const handleSave = async () => {
-    if(!formData.customerName || !formData.productType) {
-      alert("Please fill in the required fields (Name & Item Type).");
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    try {
-      const docRef = doc(db, "services", formData.id);
-      
-      if (scanResult === 'new') {
-        // Create new document with fixed ID
-        await setDoc(docRef, { ...formData, createdAt: serverTimestamp() });
-      } else {
-        // Update existing document
-        await updateDoc(docRef, formData);
-      }
-      
-      setIsSaving(false);
-      setScanResult(null);
-      alert(scanResult === 'new' ? 'Successfully Registered!' : 'Modifications Saved!');
-      navigate('/admin/services');
-    } catch (error) {
-      console.error("Error saving document: ", error);
-      alert("Error saving to database. Please try again.");
-      setIsSaving(false);
-    }
+  const handleCall = () => {
+    window.open(`tel:${formData.customerPhone}`, '_self');
   };
+
+  // =========================
+  // SAVE
+  // =========================
+const handleSave = async () => {
+
+  if (
+    !formData.customerName ||
+    !formData.productType
+  ) {
+    alert(
+      'Please fill customer name and item type'
+    );
+    return;
+  }
+
+  // BILL AMOUNT REQUIRED
+  if (
+    (formData.status === 'completed' ||
+      formData.status === 'delivered') &&
+    !formData.amount
+  ) {
+    alert(
+      'Bill amount required for completed/delivered status'
+    );
+    return;
+  }
+
+  setIsSaving(true);
+
+  try {
+
+    const cleanData = {
+
+      id: formData.id || '',
+
+      status:
+        formData.status || 'pending',
+
+      receivedAt:
+        formData.receivedAt || '',
+
+      completedAt:
+        (formData.status === 'completed' ||
+          formData.status === 'delivered')
+          ? (
+              formData.completedAt ||
+              new Date()
+                .toISOString()
+                .split('T')[0]
+            )
+          : '',
+
+      techName:
+        formData.techName || '',
+
+      techPhone:
+        formData.techPhone || '',
+
+      customerName:
+        formData.customerName || '',
+
+      customerPhone:
+        formData.customerPhone || '',
+
+      customerLocation:
+        formData.customerLocation || '',
+
+      productBrand:
+        formData.productBrand || '',
+
+      productType:
+        formData.productType || '',
+
+      problem:
+        formData.problem || '',
+
+      amount:
+        formData.amount || '',
+
+      images: Array.isArray(formData.images)
+        ? formData.images.filter(Boolean)
+        : [],
+
+      inspectionPoints:
+        Array.isArray(
+          formData.inspectionPoints
+        )
+          ? formData.inspectionPoints.filter(
+              Boolean
+            )
+          : []
+    };
+
+    const serviceRef = doc(
+      db,
+      'services',
+      cleanData.id
+    );
+
+    if (scanResult === 'new') {
+
+      await setDoc(serviceRef, {
+        ...cleanData,
+        createdAt: serverTimestamp()
+      });
+
+    } else {
+
+      await updateDoc(
+        serviceRef,
+        cleanData
+      );
+
+    }
+
+    const currentUser = auth.currentUser;
+
+    // UPDATE TECHNICIAN ACTIVE TASK
+    if (currentUser && !isOtherTech) {
+
+      const techRef = doc(
+        db,
+        'technicians',
+        currentUser.uid
+      );
+
+      // CLEAR TASK IF DELIVERED
+      if (
+        cleanData.status ===
+        'delivered'
+      ) {
+
+        // --- FIXED HERE: Using setDoc with merge: true ---
+        await setDoc(techRef, {
+          currentTask: null
+        }, { merge: true });
+
+      } else {
+
+        // --- FIXED HERE: Using setDoc with merge: true ---
+        await setDoc(techRef, {
+          currentTask: {
+            id: cleanData.id,
+            item:
+              cleanData.productType
+          }
+        }, { merge: true });
+
+      }
+
+    }
+
+    alert(
+      scanResult === 'new'
+        ? 'New Service Registered'
+        : 'Service Updated'
+    );
+
+    navigate(-1);
+
+  } catch (err) {
+
+    console.error(
+      'Firebase Save Error:',
+      err
+    );
+
+    alert(
+      'Failed to save to database'
+    );
+
+  } finally {
+
+    setIsSaving(false);
+
+  }
+};
 
   return (
     <div className="relative min-h-screen bg-transparent font-sans flex flex-col">
-      
-      {/* Full-Screen Image Viewer */}
+
+      {/* IMAGE VIEWER */}
       <AnimatePresence>
         {viewingImage && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div
+            initial={{
+              opacity: 0
+            }}
+            animate={{
+              opacity: 1
+            }}
+            exit={{
+              opacity: 0
+            }}
             className="fixed inset-0 z-[80] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setViewingImage(null)}
+            onClick={() =>
+              setViewingImage(null)
+            }
           >
-            <div className="relative bg-white p-2 rounded-2xl shadow-2xl max-w-3xl w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
-              <button className="absolute -top-4 -right-4 p-2.5 bg-[#C82327] rounded-full text-white shadow-xl hover:scale-105 active:scale-95 transition-all" onClick={() => setViewingImage(null)}>
+            <div
+              className="relative bg-white p-2 rounded-2xl max-w-3xl w-full"
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
+              <button
+                className="absolute -top-4 -right-4 p-2 bg-[#C82327] rounded-full text-white"
+                onClick={() =>
+                  setViewingImage(null)
+                }
+              >
                 <X className="w-5 h-5" />
               </button>
-              <img src={viewingImage} alt="Enlarged product" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+
+              <img
+                src={viewingImage}
+                alt=""
+                className="max-w-full max-h-[80vh] object-contain rounded-xl"
+              />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- CENTERED POPUP MODAL (Handles both New & Existing) --- */}
+      {/* MAIN */}
       <AnimatePresence>
         {scanResult && (
           <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            <motion.div
+              initial={{
+                opacity: 0
+              }}
+              animate={{
+                opacity: 1
+              }}
+              exit={{
+                opacity: 0
+              }}
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60]"
             />
-            
+
             <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
-              <motion.div 
-                initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-                animate={{ scale: 1, opacity: 1, y: 0 }} 
-                exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+
+              <motion.div
+                initial={{
+                  scale: 0.95,
+                  opacity: 0,
+                  y: 20
+                }}
+                animate={{
+                  scale: 1,
+                  opacity: 1,
+                  y: 0
+                }}
+                exit={{
+                  scale: 0.95,
+                  opacity: 0,
+                  y: 20
+                }}
                 className="w-full max-w-lg bg-[#FAFAFA] rounded-3xl p-5 shadow-2xl max-h-[90vh] flex flex-col pointer-events-auto"
               >
-                
-                {/* Form Header */}
-                <div className="flex justify-between items-center mb-3 flex-shrink-0">
+
+                {/* HEADER */}
+                <div className="flex justify-between items-center mb-3">
+
                   <div>
                     <h3 className="text-lg font-black text-gray-900">
-                      {scanResult === 'new' ? 'New Registration' : 'Edit Service Ticket'}
+                      {scanResult ===
+                      'new'
+                        ? 'New Service'
+                        : 'Service Details'}
                     </h3>
-                    <p className="text-[10px] font-bold text-[#C82327] mt-0.5 tracking-wider uppercase">ID: {formData.id} Attached</p>
-                  </div>
-                  <button onClick={() => { setScanResult(null); navigate(-1); }} className="bg-gray-200 p-2 rounded-full text-gray-600 hover:text-gray-900 active:scale-95"><X className="w-4 h-4" /></button>
-                </div>
 
-                {/* Form Content (Scrollable Area) */}
-                <div className="flex-1 overflow-y-auto space-y-4 pb-4 scrollbar-hide pr-1">
-                  
-                  {scanResult === 'new' && (
-                    <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex items-start gap-3">
-                      <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-[10px] font-bold text-orange-800 leading-relaxed">Unregistered QR. Capture initial details before starting service.</p>
-                    </div>
-                  )}
-
-                  {/* System & Status Details */}
-                  <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50 space-y-4">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase tracking-wider"><Settings className="w-3.5 h-3.5"/> System Status</div>
-                    
-                    {/* Status Buttons */}
-                    <div className="bg-gray-50 p-1.5 rounded-xl flex flex-wrap gap-1 border border-gray-100 shadow-inner">
-                      {['pending', 'in_progress', 'completed', 'delivered'].map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => handleStatusChange(s)}
-                          className={`flex-1 min-w-[70px] py-2.5 rounded-lg text-[9px] font-bold uppercase transition-all ${
-                            formData.status === s ? 'bg-[#C82327] text-white shadow-md' : 'text-gray-400 hover:bg-white'
-                          }`}
-                        >
-                          {s.replace('_', ' ')}
-                        </button>
-                      ))}
-                    </div>
-
-                    {scanResult === 'existing' && (
-                      <>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 mb-1.5">Received At</label>
-                            <input type="date" name="receivedAt" value={formData.receivedAt} onChange={handleChange} className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-3 py-2.5 rounded-xl border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20" />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 mb-1.5">Completed At</label>
-                            <input type="date" name="completedAt" value={formData.completedAt} onChange={handleChange} className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-3 py-2.5 rounded-xl border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 mb-1.5">Assigned Tech</label>
-                            <input type="text" name="techName" value={formData.techName} onChange={handleChange} placeholder="Tech Name" className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-3 py-2.5 rounded-xl border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20" />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 mb-1.5">Tech Phone</label>
-                            <input type="tel" name="techPhone" value={formData.techPhone} onChange={handleChange} placeholder="Tech Phone" className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-3 py-2.5 rounded-xl border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20" />
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <p className="text-[10px] font-bold text-[#C82327] uppercase">
+                      ID :
+                      {' '}
+                      {formData.id}
+                    </p>
                   </div>
 
-                  {/* Customer Details */}
-                  <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50 space-y-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase tracking-wider"><User className="w-3.5 h-3.5"/> Customer Info</div>
-                      {scanResult === 'existing' && (
-                        <div className="flex gap-2">
-                          <button onClick={handleCall} className="p-1.5 bg-blue-50 text-blue-600 rounded-md active:scale-95 transition-all"><PhoneCall className="w-3.5 h-3.5" /></button>
-                          <button onClick={handleWhatsApp} className="p-1.5 bg-[#25D366]/10 text-[#25D366] rounded-md active:scale-95 transition-all"><MessageCircle className="w-3.5 h-3.5" /></button>
-                        </div>
-                      )}
-                    </div>
-                    <input type="text" name="customerName" placeholder="Full Name *" value={formData.customerName} onChange={handleChange} className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none" />
-                    <div className="relative">
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type="tel" name="customerPhone" placeholder="WhatsApp Number" value={formData.customerPhone} onChange={handleChange} className="w-full bg-gray-50 text-xs font-bold text-gray-900 pl-10 pr-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none" />
-                    </div>
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-3 w-4 h-4 text-gray-400" />
-                      <textarea name="customerLocation" placeholder="Address / Location" value={formData.customerLocation} onChange={handleChange} rows="2" className="w-full bg-gray-50 text-xs font-bold text-gray-900 pl-10 pr-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none resize-none"></textarea>
-                    </div>
-                  </div>
-
-                  {/* Product Details & Billing */}
-                  <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50 space-y-3">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase tracking-wider"><Package className="w-3.5 h-3.5"/> Product & Billing</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <input type="text" name="productBrand" placeholder="Brand" value={formData.productBrand} onChange={handleChange} className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none" />
-                      <input type="text" name="productType" placeholder="Item Type *" value={formData.productType} onChange={handleChange} className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none" />
-                    </div>
-                    <textarea name="problem" placeholder="Reported Issue..." value={formData.problem} onChange={handleChange} rows="2" className="w-full bg-gray-50 text-xs font-bold text-gray-900 px-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none resize-none"></textarea>
-                    
-                    {/* Admin Editable Bill Amount */}
-                    <div className="pt-2 border-t border-gray-100">
-                      <label className="block text-[10px] font-bold text-gray-400 mb-1.5 flex justify-between">
-                        <span>Total Bill Amount (₹)</span>
-                        <span className="text-[9px] text-[#C82327] uppercase tracking-wider">Admin Editable</span>
-                      </label>
-                      <div className="relative">
-                        <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#C82327]" />
-                        <input 
-                          type="number" name="amount" value={formData.amount} onChange={handleChange} 
-                          className="w-full bg-red-50 text-base font-black text-[#C82327] pl-10 pr-4 py-3 rounded-xl border border-red-100 focus:outline-none focus:ring-2 focus:ring-[#C82327]/40" 
-                          placeholder="0.00" 
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Device Upload Gallery */}
-                  <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50">
-                    <label className="block text-[10px] font-bold text-gray-400 mb-2 flex items-center justify-between">
-                      <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5" /> Product Images</span>
-                      <button onClick={() => fileInputRef.current?.click()} className="text-[#C82327] font-bold text-[10px] bg-red-50 px-2 py-1 rounded-md active:scale-95 transition-transform">+ Add Photos</button>
-                    </label>
-                    <input type="file" multiple accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
-                    
-                    {formData.images.length > 0 && (
-                      <div className="flex gap-3 overflow-x-auto pb-2 mt-3">
-                        {formData.images.map((img, idx) => (
-                          <div key={idx} onClick={() => setViewingImage(img)} className="w-16 h-16 flex-shrink-0 relative rounded-xl border border-gray-200 overflow-hidden cursor-pointer">
-                            <img src={img} className="w-full h-full object-cover" alt={`Img ${idx}`} />
-                            <button onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 z-10"><X className="w-3 h-3" /></button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Intake/Inspection Notes */}
-                  <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Service Notes</h3>
-                      <button onClick={addPoint} className="text-[#C82327] flex items-center gap-1 text-[9px] font-bold bg-red-50 px-2 py-1 rounded-md active:scale-95 transition-transform">
-                        <Plus className="w-3 h-3" /> Add Point
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {formData.inspectionPoints.map((point, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <span className="text-[#C82327] font-black text-lg leading-none">•</span>
-                          <input 
-                            type="text" placeholder="Note detail..." value={point} onChange={(e) => handlePointChange(index, e.target.value)} 
-                            className="flex-1 bg-gray-50 text-xs font-bold text-gray-900 px-3 py-2.5 rounded-lg border border-gray-100 focus:ring-2 focus:ring-[#C82327]/20 outline-none" 
-                          />
-                          <button onClick={() => removePoint(index)} className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      ))}
-                      {formData.inspectionPoints.length === 0 && <p className="text-[10px] font-bold text-gray-300 italic">No notes added.</p>}
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Fixed Save Button Inside Modal */}
-                <div className="flex-shrink-0 pt-3 border-t border-gray-100 mt-1">
-                  <button 
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-xl font-bold text-white bg-[#C82327] shadow-lg shadow-red-900/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                  <button
+                    onClick={() =>
+                      navigate(-1)
+                    }
+                    className="bg-gray-200 p-2 rounded-full"
                   >
-                    {isSaving ? "Saving to Database..." : <><Database className="w-5 h-5"/> {scanResult === 'new' ? 'Save & Register' : 'Save Modifications'}</>}
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
+                {/* CONTENT */}
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
+
+                  {/* ALERT FOR NEW */}
+                  {scanResult ===
+                    'new' && (
+                    <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex items-start gap-3">
+
+                      <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5" />
+
+                      <p className="text-[10px] font-bold text-orange-800">
+                        New QR detected.
+                        Fill the form and
+                        save.
+                      </p>
+
+                    </div>
+                  )}
+
+                  {/* ALERT FOR LOCKED RECORD */}
+                  {isOtherTech && (
+                    <div className="bg-gray-100 border border-gray-200 p-3 rounded-xl flex items-start gap-3">
+                      <AlertCircle className="w-4 h-4 text-gray-500 mt-0.5" />
+                      <p className="text-[10px] font-bold text-gray-700">
+                        This service is managed by {formData.techName}. Fields are locked, but you can mark it as delivered.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* STATUS */}
+                  <div className="bg-white p-4 rounded-2xl border border-gray-50 space-y-4">
+
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase">
+
+                      <Settings className="w-3.5 h-3.5" />
+
+                      System Status
+
+                    </div>
+
+                    <div className="bg-gray-50 p-1.5 rounded-xl flex gap-1 border border-gray-100">
+
+                      {allowedStatuses.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() =>
+                            handleStatusChange(
+                              s
+                            )
+                          }
+                          className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase transition-all ${
+  (formData.status || 'pending') === s
+    ? 'bg-[#C82327] text-white'
+    : 'text-gray-400'
+}`}
+                        >
+                          {s.replace(
+                            '_',
+                            ' '
+                          )}
+                        </button>
+                      ))}
+                      
+                    </div>
+
+                    {/* TECH */}
+                    <div className="grid grid-cols-2 gap-3">
+
+                      <input
+                        type="text"
+                        value={
+                          formData.techName
+                        }
+                        disabled
+                        className="w-full bg-gray-100 text-xs font-bold text-gray-700 px-3 py-3 rounded-xl"
+                      />
+
+                      <input
+                        type="text"
+                        value={
+                          formData.techPhone
+                        }
+                        disabled
+                        className="w-full bg-gray-100 text-xs font-bold text-gray-700 px-3 py-3 rounded-xl"
+                      />
+
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+
+  <div>
+    <label className="block text-[10px] font-bold text-gray-400 mb-1">
+      Received At
+    </label>
+
+    <input
+  type="date"
+  name="receivedAt"
+  value={formData.receivedAt || ''}
+  disabled
+  className="w-full bg-gray-100 text-xs font-bold px-3 py-3 rounded-xl border border-gray-100 outline-none"
+/>
+  </div>
+
+  <div>
+    <label className="block text-[10px] font-bold text-gray-400 mb-1">
+      Completed At
+    </label>
+
+    <input
+      type="date"
+      name="completedAt"
+      value={formData.completedAt}
+      onChange={handleChange}
+      disabled
+      className="w-full bg-gray-100 text-xs font-bold px-3 py-3 rounded-xl border border-gray-100 outline-none"
+    />
+  </div>
+
+</div>
+                  </div>
+
+                  {/* CUSTOMER */}
+                  <div className="bg-white p-4 rounded-2xl border border-gray-50 space-y-3">
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase">
+                        <User className="w-3.5 h-3.5" />
+                        Customer Info
+                      </div>
+                      
+                      {/* Communication Buttons visible only when status is 'completed' */}
+                      {formData.status === 'completed' && (
+                        <div className="flex gap-2">
+                          <button onClick={handleCall} className="p-1.5 bg-blue-50 text-blue-600 rounded-md active:scale-95 transition-all">
+                            <PhoneCall className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={handleWhatsApp} className="p-1.5 bg-[#25D366]/10 text-[#25D366] rounded-md active:scale-95 transition-all">
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      name="customerName"
+                      placeholder="Customer Name"
+                      value={
+                        formData.customerName
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={isOtherTech}
+                      className="w-full bg-gray-50 text-xs font-bold px-4 py-3 rounded-xl border border-gray-100 outline-none disabled:opacity-60"
+                    />
+
+                    <input
+                      type="tel"
+                      name="customerPhone"
+                      placeholder="Phone"
+                      value={
+                        formData.customerPhone
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={isOtherTech}
+                      className="w-full bg-gray-50 text-xs font-bold px-4 py-3 rounded-xl border border-gray-100 outline-none disabled:opacity-60"
+                    />
+
+                    <textarea
+                      name="customerLocation"
+                      rows="2"
+                      placeholder="Location"
+                      value={
+                        formData.customerLocation
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={isOtherTech}
+                      className="w-full bg-gray-50 text-xs font-bold px-4 py-3 rounded-xl border border-gray-100 outline-none resize-none disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* PRODUCT */}
+                  <div className="bg-white p-4 rounded-2xl border border-gray-50 space-y-3">
+
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase">
+
+                      <Package className="w-3.5 h-3.5" />
+
+                      Product Details
+
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+
+                      <input
+                        type="text"
+                        name="productBrand"
+                        placeholder="Brand"
+                        value={
+                          formData.productBrand
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        disabled={isOtherTech}
+                        className="w-full bg-gray-50 text-xs font-bold px-4 py-3 rounded-xl border border-gray-100 outline-none disabled:opacity-60"
+                      />
+
+                      <input
+                        type="text"
+                        name="productType"
+                        placeholder="Item Type"
+                        value={
+                          formData.productType
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        disabled={isOtherTech}
+                        className="w-full bg-gray-50 text-xs font-bold px-4 py-3 rounded-xl border border-gray-100 outline-none disabled:opacity-60"
+                      />
+
+                    </div>
+
+                    <textarea
+                      name="problem"
+                      rows="2"
+                      placeholder="Problem Description"
+                      value={
+                        formData.problem
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={isOtherTech}
+                      className="w-full bg-gray-50 text-xs font-bold px-4 py-3 rounded-xl border border-gray-100 resize-none outline-none disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* IMAGES */}
+                  <div className="bg-white p-4 rounded-2xl border border-gray-50">
+
+                    <div className="flex items-center justify-between mb-3">
+
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#C82327] uppercase">
+
+                        <ImageIcon className="w-3.5 h-3.5" />
+
+                        Product Images
+
+                      </div>
+
+                      {!isOtherTech && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              fileInputRef.current?.click()
+                            }
+                            className="text-gray-600 font-bold text-[10px] bg-gray-100 px-2 py-1.5 rounded-md active:scale-95 transition-transform"
+                          >
+                            Gallery
+                          </button>
+                          <button
+                            onClick={handleNativeImageUpload}
+                            className="text-[#C82327] text-[10px] font-bold bg-red-50 px-2 py-1.5 rounded-md flex items-center gap-1 active:scale-95 transition-transform"
+                          >
+                            <Camera className="w-3 h-3"/> Camera
+                          </button>
+                        </div>
+                      )}
+
+                    </div>
+
+                    <input
+                      ref={
+                        fileInputRef
+                      }
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={
+                        handleImageUpload
+                      }
+                    />
+
+                    {(formData.images ||
+                      []).length >
+                      0 && (
+                      <div className="flex gap-3 overflow-x-auto pb-2">
+
+                        {formData.images.map(
+                          (
+                            img,
+                            index
+                          ) => (
+                            <div
+                              key={
+                                index
+                              }
+                              className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 flex-shrink-0"
+                            >
+                             {console.log("Image error solve chyane: ",img)}
+                              <img
+                                src={
+                                  img
+                                }
+                                alt=""
+                                onClick={() =>
+                                  setViewingImage(
+                                    img
+                                  )
+                                }
+                                className="w-full h-full object-cover cursor-pointer"
+                              />
+
+                              {!isOtherTech && (
+                                <button
+                                  onClick={() =>
+                                    removeImage(
+                                      index
+                                    )
+                                  }
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+
+                            </div>
+                          )
+                        )}
+
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* NOTES */}
+                  <div className="bg-white p-4 rounded-2xl border border-gray-50">
+
+                    <div className="flex justify-between items-center mb-3">
+
+                      <h3 className="text-[10px] font-bold text-gray-400 uppercase">
+                        Service Notes
+                      </h3>
+
+                      {!isOtherTech && (
+                        <button
+                          onClick={
+                            addPoint
+                          }
+                          className="flex items-center gap-1 text-[#C82327] text-[10px] font-bold bg-red-50 px-2 py-1 rounded-lg"
+                        >
+                          <Plus className="w-3 h-3" />
+
+                          Add Point
+                        </button>
+                      )}
+
+                    </div>
+
+                    <div className="space-y-2">
+
+                      {(
+                        formData.inspectionPoints ||
+                        []
+                      ).map(
+                        (
+                          point,
+                          index
+                        ) => (
+                          <div
+                            key={
+                              index
+                            }
+                            className="flex gap-2 items-center"
+                          >
+
+                            <input
+                              type="text"
+                              value={
+                                point
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                handlePointChange(
+                                  index,
+                                  e
+                                    .target
+                                    .value
+                                )
+                              }
+                              disabled={isOtherTech}
+                              placeholder="Service note..."
+                              className="flex-1 bg-gray-50 text-xs font-bold px-3 py-2.5 rounded-lg border border-gray-100 outline-none disabled:opacity-60"
+                            />
+
+                            {!isOtherTech && (
+                              <button
+                                onClick={() =>
+                                  removePoint(
+                                    index
+                                  )
+                                }
+                                className="bg-red-50 p-2 rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
+                            )}
+
+                          </div>
+                        )
+                      )}
+
+                      {(
+                        formData.inspectionPoints ||
+                        []
+                      ).length ===
+                        0 && (
+                        <p className="text-[10px] text-gray-300 italic">
+                          No notes added
+                        </p>
+                      )}
+
+                    </div>
+                  </div>
+
+                  {/* BILLING & ADMIN (Shows only on completed/delivered status) */}
+                  {(formData.status === 'completed' || formData.status === 'delivered') && (
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-800 uppercase mb-3">
+                        <Activity className="w-3.5 h-3.5" />
+                        Billing Details
+                      </div>
+                      
+                      <input
+                        type="number"
+                        name="amount"
+                        placeholder="Total Bill Amount (₹)"
+                        value={formData.amount}
+                        onChange={handleChange}
+                        disabled={isOtherTech}
+                        className="w-full bg-white text-xs font-bold px-4 py-3 rounded-xl border border-blue-100 outline-none mb-3 disabled:opacity-70"
+                      />
+                      
+                    
+                    </div>
+                  )}
+
+                </div>
+
+                {/* SAVE */}
+                <div className="pt-3 border-t border-gray-100">
+
+                  <button
+                    onClick={
+                      handleSave
+                    }
+                    disabled={
+                      isSaving
+                    }
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-white bg-[#C82327] active:scale-95 transition-transform"
+                  >
+
+                    {isSaving
+                      ? 'Saving...'
+                      : (
+                        <>
+                          <Database className="w-5 h-5" />
+
+                          {scanResult ===
+                          'new'
+                            ? 'Save Service'
+                            : 'Update Service'}
+                        </>
+                      )}
+
+                  </button>
+
+                </div>
+
               </motion.div>
+
             </div>
           </>
         )}
       </AnimatePresence>
-
     </div>
   );
-} 
+}

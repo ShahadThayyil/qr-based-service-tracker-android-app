@@ -243,7 +243,7 @@ export default function TechScanner() {
             ...prev,
             ...existingData,
             id: scannedId,
-            status: existingData?.status ?? 'pending',
+            status: existingData?.status ?? 'pending',            
             receivedAt:
               existingData.receivedAt ||
               new Date().toISOString().split('T')[0],

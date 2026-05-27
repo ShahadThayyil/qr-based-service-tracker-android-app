@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Save, User, Package, Settings, Phone, MapPin, Plus, Trash2, MessageCircle, PhoneCall, Image as ImageIcon, X } from 'lucide-react';
+import { ArrowLeft, Save, User, Package, Settings, Phone, MapPin, Plus, Trash2, MessageCircle, PhoneCall, Image as ImageIcon, X, Camera } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase/firebase'; // Ensure your path is correct
+import { db } from '../../firebase/firebase'; 
+import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 export default function AdminServiceDetail() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function AdminServiceDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [viewingImage, setViewingImage] = useState(null); 
+  const statusOrder = ['pending', 'in_progress', 'completed', 'delivered'];
 
   // --- FIREBASE: FETCH INITIAL DATA ---
   useEffect(() => {
@@ -52,6 +54,42 @@ export default function AdminServiceDetail() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleStatusChange = (newStatus) => {
+  const currentIndex = statusOrder.indexOf(formData.status);
+  const newIndex = statusOrder.indexOf(newStatus);
+
+  // Prevent backward movement
+  if (newIndex < currentIndex) {
+    alert("Backward status change is not allowed.");
+    return;
+  }
+
+  // Require bill amount before completed
+  if (
+    (newStatus === 'completed' || newStatus === 'delivered') &&
+    (!formData.amount || Number(formData.amount) <= 0)
+  ) {
+    alert("Please enter bill amount first.");
+    return;
+  }
+
+  const updates = {
+    status: newStatus
+  };
+
+  // Auto set completed date
+  if (
+    (newStatus === 'completed' || newStatus === 'delivered') &&
+    !formData.completedAt
+  ) {
+    updates.completedAt = new Date().toISOString().split('T')[0];
+  }
+
+  setFormData(prev => ({
+    ...prev,
+    ...updates
+  }));
+};
   // --- POINTS LOGIC ---
   const handlePointChange = (index, value) => {
     const updatedPoints = [...formData.inspectionPoints];
@@ -115,6 +153,58 @@ export default function AdminServiceDetail() {
     }
     setIsUploading(false);
   };
+  const handleCameraCapture = async () => {
+  try {
+    const image = await CapacitorCamera.getPhoto({
+      quality: 80,
+      allowEditing: false,
+      resultType: CameraResultType.Uri,
+      source: CameraSource.Camera,
+    });
+
+    if (!image.webPath) return;
+
+    // Instant preview
+    setPreviewImages(prev => [...prev, image.webPath]);
+
+    setIsUploading(true);
+
+    // Convert image to blob
+    const response = await fetch(image.webPath);
+    const blob = await response.blob();
+
+    const file = new File([blob], `camera-${Date.now()}.jpg`, {
+      type: blob.type,
+    });
+
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("upload_preset", "techno-service-manager");
+    uploadData.append("cloud_name", "dmtzmgbkj");
+
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/dmtzmgbkj/image/upload",
+      {
+        method: "POST",
+        body: uploadData,
+      }
+    );
+
+    const json = await res.json();
+
+    if (json.secure_url) {
+      setFormData(prev => ({
+        ...prev,
+        images: [...(prev.images || []), json.secure_url]
+      }));
+    }
+
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   const removeImage = (indexToRemove) => {
     setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== indexToRemove) }));
@@ -133,6 +223,14 @@ export default function AdminServiceDetail() {
 
   // --- FIREBASE: SAVE DATA ---
   const handleSave = async () => {
+    if (
+  (formData.status === 'completed' ||
+    formData.status === 'delivered') &&
+  (!formData.amount || Number(formData.amount) <= 0)
+) {
+  alert("Bill amount is required.");
+  return;
+}
     setIsSaving(true);
     try {
       const docRef = doc(db, "services", id);
@@ -231,17 +329,34 @@ export default function AdminServiceDetail() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-gray-400 mb-1.5">Current Status</label>
-                  <select 
-                    name="status" 
-                    value={formData.status || 'pending'} 
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 text-sm font-bold text-gray-900 px-4 py-3 rounded-xl border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="delivered">Delivered</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-3">
+  {statusOrder.map((status, index) => {
+    const active = formData.status === status;
+    const completed =
+      statusOrder.indexOf(formData.status) >= index;
+
+    return (
+      <button
+        key={status}
+        type="button"
+        onClick={() => handleStatusChange(status)}
+        className={`py-3 rounded-xl text-xs font-black transition-all border active:scale-95
+        ${
+          active
+            ? 'bg-[#C82327] text-white border-[#C82327]'
+            : completed
+            ? 'bg-red-50 text-[#C82327] border-red-100'
+            : 'bg-gray-50 text-gray-500 border-gray-100'
+        }`}
+      >
+        {status === 'pending' && 'Pending'}
+        {status === 'in_progress' && 'In Progress'}
+        {status === 'completed' && 'Completed'}
+        {status === 'delivered' && 'Delivered'}
+      </button>
+    );
+  })}
+</div>
                 </div>
 
                 {/* Fully Editable Dates */}
@@ -372,13 +487,26 @@ export default function AdminServiceDetail() {
               <div className="pt-2">
                 <label className="block text-[11px] font-bold text-gray-400 mb-2 flex items-center justify-between">
                   <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5" /> Product Images</span>
-                  <button 
-                    onClick={() => fileInputRef.current?.click()} 
-                    disabled={isUploading}
-                    className="text-[#C82327] font-bold text-[10px] bg-red-50 px-2 py-1 rounded-md active:scale-95 transition-transform disabled:opacity-50"
-                  >
-                    {isUploading ? "Uploading..." : "+ Add Photos"}
-                  </button>
+                 <div className="flex gap-2">
+  <button 
+    type="button"
+    onClick={() => fileInputRef.current?.click()} 
+    disabled={isUploading}
+    className="text-[#C82327] font-bold text-[10px] bg-red-50 px-2 py-1 rounded-md active:scale-95 transition-transform disabled:opacity-50"
+  >
+    Gallery
+  </button>
+
+  <button
+    type="button"
+    onClick={handleCameraCapture}
+    disabled={isUploading}
+    className="text-white font-bold text-[10px] bg-[#C82327] px-2 py-1 rounded-md active:scale-95 transition-transform disabled:opacity-50 flex items-center gap-1"
+  >
+    <Camera className="w-3 h-3" />
+    Camera
+  </button>
+</div>
                 </label>
                 <input type="file" multiple accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
                 
