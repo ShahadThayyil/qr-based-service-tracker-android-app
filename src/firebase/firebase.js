@@ -7,13 +7,13 @@ import { initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBZOrBJBMkHc6G2ds1t1x_BLW8M8gEPoHo",
-  authDomain: "techno-service-manager.firebaseapp.com",
-  projectId: "techno-service-manager",
-  storageBucket: "techno-service-manager.firebasestorage.app",
-  messagingSenderId: "619244027739",
-  appId: "1:619244027739:web:74ad5dd385c66b4a91a47e",
-  measurementId: "G-NPCFPSSY1P"
+  apiKey: "AIzaSyDmc5dhOeWGkj9CqMmb1yVbydfhiKNmndw",
+  authDomain: "service-manager-techno.firebaseapp.com",
+  projectId: "service-manager-techno",
+  storageBucket: "service-manager-techno.firebasestorage.app",
+  messagingSenderId: "30003044240",
+  appId: "1:30003044240:web:1ce6ef70c9ab578da39d15",
+  measurementId: "G-9CHG3GK4NN"
 };
 
 // Initialize Firebase

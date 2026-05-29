@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Settings2, Download, FileText, Archive, CheckCircle } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import jsPDF from 'jspdf';
@@ -59,10 +58,10 @@ export default function AdminQRGenerator() {
         for (let i = 0; i < ids.length; i++) {
           const id = ids[i];
 
-          await sleep(5); // ✅ prevents UI freeze
+          await sleep(5); // prevents UI freeze
 
           const canvas = document.getElementById(`qr-${id}`);
-          if (!canvas) continue; // ✅ prevent crash
+          if (!canvas) continue; // prevent crash
 
           const imgData = canvas.toDataURL("image/png");
 
@@ -92,10 +91,10 @@ export default function AdminQRGenerator() {
         const zip = new JSZip();
 
         for (const id of ids) {
-          await sleep(2); // ✅ prevents freeze
+          await sleep(2); // prevents freeze
 
           const canvas = document.getElementById(`qr-${id}`);
-          if (!canvas) continue; // ✅ safe guard
+          if (!canvas) continue; // safe guard
 
           const imgData = canvas.toDataURL("image/png").split(',')[1];
           zip.file(`${id}.png`, imgData, { base64: true });
@@ -126,7 +125,7 @@ export default function AdminQRGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pb-24">
+    <div className="min-h-screen bg-[#FAFAFA] pb-24 font-sans">
 
       {/* Hidden QR Generator */}
       <div className="hidden">
@@ -140,48 +139,81 @@ export default function AdminQRGenerator() {
         ))}
       </div>
 
-      {/* Header */}
-      <div className="bg-[#C82327] rounded-b-3xl px-4 pt-12 pb-6 shadow-md">
-        <h1 className="text-xl font-bold text-white">QR Generator</h1>
+      {/* Header - Flat bottom, no rounded curves */}
+      <div className="bg-[#C82327] px-5 pt-12 pb-6 shadow-md">
+        <h1 className="text-xl font-black text-white">QR Generator</h1>
+        <p className="text-red-100 text-xs font-bold mt-1 uppercase tracking-wider">
+          Batch Create Labels
+        </p>
       </div>
 
-      {/* Inputs */}
-      <div className="px-4 py-4 space-y-4">
-        <input
-          value={prefix}
-          onChange={(e) => setPrefix(e.target.value)}
-          className="w-full p-3 border rounded-xl"
-        />
+      {/* Inputs Section */}
+      <div className="px-5 py-6 space-y-5">
+        
+        <div>
+          <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
+            ID Prefix
+          </label>
+          <input
+            type="text"
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
+            className="w-full p-3.5 border border-gray-200 rounded-xl bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 transition-all"
+            placeholder="e.g., SRV-"
+          />
+        </div>
 
-        <input
-          type="number"
-          value={startNum}
-          onChange={(e) => setStartNum(Number(e.target.value))}
-          className="w-full p-3 border rounded-xl"
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
+              Start Number
+            </label>
+            <input
+              type="number"
+              value={startNum}
+              onChange={(e) => setStartNum(Number(e.target.value))}
+              className="w-full p-3.5 border border-gray-200 rounded-xl bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 transition-all"
+            />
+          </div>
 
-        <input
-          type="number"
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-          className="w-full p-3 border rounded-xl"
-        />
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
+              Quantity
+            </label>
+            <input
+              type="number"
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              className="w-full p-3.5 border border-gray-200 rounded-xl bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 transition-all"
+            />
+          </div>
+        </div>
 
-        <button
-          onClick={() => handleGenerate('pdf')}
-          className="w-full bg-[#C82327] text-white py-4 rounded-xl font-bold"
-          disabled={isGenerating}
-        >
-          {isGenerating ? "Registering & Generating..." : "Download PDF"}
-        </button>
+        <div className="pt-4 space-y-3">
+          <button
+            onClick={() => handleGenerate('pdf')}
+            disabled={isGenerating}
+            className="w-full bg-[#C82327] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform disabled:opacity-70"
+          >
+            {isGenerating ? (
+              "Registering & Generating..."
+            ) : (
+              <>
+                <FileText className="w-5 h-5" />
+                Download PDF
+              </>
+            )}
+          </button>
 
-        <button
-          onClick={() => handleGenerate('zip')}
-          className="w-full bg-white border py-4 rounded-xl font-bold"
-          disabled={isGenerating}
-        >
-          Download ZIP
-        </button>
+          <button
+            onClick={() => handleGenerate('zip')}
+            disabled={isGenerating}
+            className="w-full bg-white border border-gray-200 text-gray-800 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform disabled:opacity-70"
+          >
+            <Archive className="w-5 h-5 text-gray-500" />
+            Download ZIP
+          </button>
+        </div>
       </div>
     </div>
   );

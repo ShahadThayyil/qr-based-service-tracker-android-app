@@ -4,10 +4,8 @@ import {
   Search, 
   Wrench, 
   CheckCircle, 
-  Activity, 
   PhoneCall, 
-  MessageCircle, 
-  Clock 
+  MessageCircle 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -84,13 +82,14 @@ export default function AdminTechnicians() {
   // CALL FUNCTION
   // ==============================
   const handleCall = (phone) => {
-    window.open(`tel:${phone}`, '_self');
+    if (phone) window.open(`tel:${phone}`, '_self');
   };
 
   // ==============================
   // WHATSAPP FUNCTION
   // ==============================
   const handleWhatsApp = (phone, name) => {
+    if (!phone) return;
     const cleanPhone = phone.replace(/\D/g, '');
     const msg = `Hello ${name}, an update regarding your tasks:`;
 
@@ -136,7 +135,6 @@ export default function AdminTechnicians() {
             <h1 className="text-xl font-bold text-white tracking-tight">
               Staff Monitor
             </h1>
-
             <p className="text-red-100 text-xs font-medium mt-0.5">
               Track technician performance
             </p>
@@ -147,7 +145,6 @@ export default function AdminTechnicians() {
             <span className="text-white font-bold text-base leading-none">
               {technicians.length}
             </span>
-
             <span className="text-red-100 text-[9px] uppercase tracking-wider mt-0.5 font-bold">
               Staff
             </span>
@@ -160,13 +157,12 @@ export default function AdminTechnicians() {
         {/* Search */}
         <div className="px-4 mt-4 relative">
           <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-
           <input
             type="text"
             placeholder="Search by name, ID, or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white shadow-[0_4px_20px_rgb(0,0,0,0.04)] text-sm font-bold text-gray-900 pl-11 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 border border-gray-50"
+            className="w-full bg-white shadow-sm text-sm font-bold text-gray-900 pl-11 pr-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 border border-gray-100 transition-shadow"
           />
         </div>
 
@@ -175,7 +171,7 @@ export default function AdminTechnicians() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white mx-4 mt-4 p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-gray-50"
+            className="bg-white mx-4 mt-4 p-4 rounded-2xl shadow-sm border border-gray-100"
           >
             <h2 className="text-sm font-bold text-gray-900 mb-3">
               Top Performers (Completed)
@@ -202,7 +198,6 @@ export default function AdminTechnicians() {
                       fontWeight: 'bold'
                     }}
                   />
-
                   <YAxis
                     axisLine={false}
                     tickLine={false}
@@ -212,7 +207,6 @@ export default function AdminTechnicians() {
                     }}
                     allowDecimals={false}
                   />
-
                   <Tooltip
                     cursor={{ fill: 'transparent' }}
                     contentStyle={{
@@ -221,7 +215,6 @@ export default function AdminTechnicians() {
                       boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                     }}
                   />
-
                   <Bar
                     dataKey="completed"
                     radius={[4, 4, 0, 0]}
@@ -241,7 +234,7 @@ export default function AdminTechnicians() {
         )}
 
         {/* Technician List */}
-        <div className="px-4 py-4">
+        <div className="px-4 py-5">
           <motion.div
             variants={container}
             initial="hidden"
@@ -258,119 +251,79 @@ export default function AdminTechnicians() {
                   <motion.div
                     key={tech.uid}
                     variants={itemVariant}
-                    className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-gray-50 relative overflow-hidden"
+                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col gap-4"
                   >
-
-                    {/* Top */}
-                    <div className="flex justify-between items-start mb-4">
-
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200 text-gray-700 font-bold text-lg">
+                    {/* Top Row: Info & Actions aligned nicely */}
+                    <div className="flex justify-between items-start gap-2">
+                      {/* Avatar & User Info */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-200 text-gray-700 font-bold text-lg shrink-0">
                           {tech.fullName?.charAt(0) || 'T'}
                         </div>
 
-                        <div>
-                          <h3 className="text-sm font-extrabold text-gray-900">
-                            {tech.fullName}
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-extrabold text-gray-900 truncate">
+                            {tech.fullName || 'Unknown Technician'}
                           </h3>
-
-                          <p className="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider">
+                          <p className="text-[10px] font-bold text-gray-400 mt-0.5 tracking-wider truncate">
                             {tech.uid}
                           </p>
-
-                          <p className="text-[11px] font-bold text-gray-600 mt-0.5">
-                            {tech.phone}
+                          <p className="text-[11px] font-bold text-gray-600 mt-0.5 truncate">
+                            {tech.phone || 'No phone provided'}
                           </p>
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex gap-2">
-
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 shrink-0">
                         <button
                           onClick={() => handleCall(tech.phone)}
-                          className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shadow-sm active:scale-95"
+                          className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shadow-sm active:scale-95 flex items-center justify-center"
+                          aria-label="Call technician"
                         >
                           <PhoneCall className="w-4 h-4" />
                         </button>
-
                         <button
-                          onClick={() =>
-                            handleWhatsApp(tech.phone, tech.fullName)
-                          }
-                          className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors shadow-sm active:scale-95"
+                          onClick={() => handleWhatsApp(tech.phone, tech.fullName)}
+                          className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors shadow-sm active:scale-95 flex items-center justify-center"
+                          aria-label="Message on WhatsApp"
                         >
                           <MessageCircle className="w-4 h-4" />
                         </button>
-
                       </div>
                     </div>
 
-                    {/* Current Task */}
-                    {tech.currentTask ? (
-                      <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 mb-4 flex items-start gap-2">
-                        <Activity className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
-                            In Progress
-                          </p>
-
-                          <p className="text-xs font-bold text-gray-900 mt-0.5">
-                            {tech.currentTask.item}
-
-                            <span className="text-gray-500 font-medium">
-                              {' '}
-                              ({tech.currentTask.id})
-                            </span>
-                          </p>
+                    {/* Stats Row (Always properly aligned at the bottom) */}
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 mt-1">
+                      {/* Completed */}
+                      <div className="flex items-center gap-3">
+                        <div className="bg-emerald-50 p-2 rounded-xl text-emerald-600 shrink-0">
+                          <CheckCircle className="w-4 h-4" />
                         </div>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 mb-4 flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-400" />
-
-                        <p className="text-xs font-bold text-gray-500">
-                          Currently Available
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-50">
-
-                      <div className="flex items-center gap-2">
-                        <div className="bg-emerald-50 p-1.5 rounded-lg text-emerald-600">
-                          <CheckCircle className="w-3.5 h-3.5" />
-                        </div>
-
                         <div>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                             Completed
                           </p>
-
                           <p className="text-sm font-extrabold text-gray-900">
                             {tech.stats?.completed || 0}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <div className="bg-orange-50 p-1.5 rounded-lg text-orange-500">
-                          <Wrench className="w-3.5 h-3.5" />
+                      {/* Pending Tasks */}
+                      <div className="flex items-center gap-3">
+                        <div className="bg-orange-50 p-2 rounded-xl text-orange-500 shrink-0">
+                          <Wrench className="w-4 h-4" />
                         </div>
-
                         <div>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                            Pending Tasks
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Pending
                           </p>
-
                           <p className="text-sm font-extrabold text-gray-900">
                             {tech.stats?.pending || 0}
                           </p>
                         </div>
                       </div>
-
                     </div>
 
                   </motion.div>
@@ -378,7 +331,7 @@ export default function AdminTechnicians() {
 
                 {filteredTechs.length === 0 && (
                   <div className="text-center text-gray-400 mt-10 font-medium">
-                    No technicians found.
+                    No technicians found matching "{searchTerm}".
                   </div>
                 )}
               </>

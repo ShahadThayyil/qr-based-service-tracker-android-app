@@ -68,6 +68,20 @@ export default function TechDashboard() {
 
   let acc = 0;
 
+  // Animation variants
+  const containerVars = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVars = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
@@ -77,74 +91,91 @@ export default function TechDashboard() {
   }
 
   return (
-    <div className="px-4 py-4 space-y-4 pb-24"> 
+    <motion.div 
+      className="px-5 py-6 space-y-5 pb-24 font-sans bg-[#FAFAFA] min-h-screen"
+      variants={containerVars}
+      initial="hidden"
+      animate="show"
+    > 
       
-      <div className="mb-2">
-        <h2 className="text-xl font-black text-gray-900">Dashboard</h2>
-      </div>
+      <motion.div variants={itemVars} className="mb-2">
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight">My Dashboard</h1>
+        <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">
+          {currentTechName ? `Welcome, ${currentTechName}` : 'Technician Overview'}
+        </p>
+      </motion.div>
 
       {/* Grid Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <motion.div variants={itemVars} className="grid grid-cols-2 gap-4">
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           return (
-            <div key={idx} className={`p-3 rounded-2xl border border-gray-100 shadow-sm ${stat.bg}`}>
-              <Icon className={`w-4 h-4 mb-2 ${stat.color}`} />
-              <p className="text-xl font-black text-gray-900">{stat.count}</p>
-              <p className={`text-[9px] font-bold uppercase tracking-wider ${stat.color}`}>{stat.label}</p>
+            <div key={idx} className={`p-4 rounded-2xl border border-gray-100 ${stat.bg}`}>
+              <Icon className={`w-5 h-5 mb-3 ${stat.color}`} />
+              <p className="text-2xl font-black text-gray-900">{stat.count}</p>
+              <p className={`text-[10px] mt-0.5 font-bold uppercase tracking-wider ${stat.color}`}>{stat.label}</p>
             </div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Chart 1: Donut Overview */}
-      <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50 mt-2">
-        <div className="flex items-center gap-2 mb-4 text-[#C82327]">
+      <motion.div variants={itemVars} className="bg-white p-5 rounded-2xl border border-gray-200 mt-2">
+        <div className="flex items-center gap-2 mb-6 text-[#C82327]">
           <PieChart className="w-4 h-4" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">Task Overview</h3>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative w-24 h-24">
-            <svg className="w-full h-full transform -rotate-90 drop-shadow-sm" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" r="15.9" fill="transparent" stroke="#F3F4F6" strokeWidth="3" />
+        <div className="flex items-center justify-between gap-6">
+          <div className="relative w-28 h-28 shrink-0">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.9" fill="transparent" stroke="#F3F4F6" strokeWidth="3.5" />
               {chartData.map((slice, i) => {
                 const dashOffset = -acc;
                 acc += slice.percent;
                 return (
-                  <circle key={i} cx="18" cy="18" r="15.9" fill="transparent" stroke={slice.color} strokeWidth="3" 
-                    strokeDasharray={`${slice.percent} 100`} strokeDashoffset={dashOffset} className="transition-all duration-1000 ease-out" />
+                  <circle 
+                    key={i} 
+                    cx="18" cy="18" r="15.9" 
+                    fill="transparent" 
+                    stroke={slice.color} 
+                    strokeWidth="3.5" 
+                    strokeDasharray={`${slice.percent} 100`} 
+                    strokeDashoffset={dashOffset} 
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out" 
+                  />
                 );
               })}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-sm font-black text-gray-900">{totalWorks}</span>
+              <span className="text-xl font-black text-gray-900">{totalWorks}</span>
             </div>
           </div>
           
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-3">
             {chartData.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{item.label}</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{item.label}</span>
                 </div>
-                <span className="text-xs font-black text-gray-900">{item.count}</span>
+                <span className="text-sm font-black text-gray-900">{item.count}</span>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Chart 2: Workload Pipeline (Horizontal Stacked Bar) */}
-      <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-50">
-        <div className="flex items-center gap-2 mb-4 text-[#C82327]">
+      <motion.div variants={itemVars} className="bg-white p-5 rounded-2xl border border-gray-200">
+        <div className="flex items-center gap-2 mb-5 text-[#C82327]">
           <Activity className="w-4 h-4" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">Workload Pipeline</h3>
         </div>
         
         {/* Horizontal Stacked Bar */}
-        <div className="w-full h-3.5 bg-gray-100 rounded-full overflow-hidden flex shadow-inner">
+        <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden flex">
           <div style={{ width: `${chartData[0].percent}%` }} className="bg-[#C82327] h-full transition-all duration-1000" />
           <div style={{ width: `${chartData[1].percent}%` }} className="bg-[#10B981] h-full transition-all duration-1000" />
           <div style={{ width: `${chartData[2].percent}%` }} className="bg-[#F97316] h-full transition-all duration-1000" />
@@ -152,25 +183,25 @@ export default function TechDashboard() {
         </div>
         
         {/* Pipeline Metrics */}
-        <div className="flex justify-between items-center mt-4">
+        <div className="flex justify-between items-center mt-5">
           <div className="text-left">
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Active Tasks</p>
-            <div className="flex items-end gap-1 mt-0.5">
-              <p className="text-sm font-black text-gray-900 leading-none">{inProgress + pending}</p>
-              <p className="text-[10px] font-bold text-orange-500 mb-[1px]">Waiting</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Tasks</p>
+            <div className="flex items-end gap-1.5 mt-1">
+              <p className="text-lg font-black text-gray-900 leading-none">{inProgress + pending}</p>
+              <p className="text-[11px] font-bold text-orange-500 mb-[2px]">Waiting</p>
             </div>
           </div>
           
           <div className="text-right">
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Resolved</p>
-            <div className="flex items-end gap-1 mt-0.5 justify-end">
-              <p className="text-[10px] font-bold text-emerald-500 mb-[1px]">Finished</p>
-              <p className="text-sm font-black text-gray-900 leading-none">{completed + delivered}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Resolved</p>
+            <div className="flex items-end gap-1.5 mt-1 justify-end">
+              <p className="text-[11px] font-bold text-emerald-500 mb-[2px]">Finished</p>
+              <p className="text-lg font-black text-gray-900 leading-none">{completed + delivered}</p>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-    </div>
+    </motion.div>
   );
 }

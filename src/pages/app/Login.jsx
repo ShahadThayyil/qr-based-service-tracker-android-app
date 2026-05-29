@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, User, Phone } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Phone, Briefcase } from 'lucide-react';
 import { auth, db } from '../../firebase/firebase';
 
 import {
@@ -12,7 +12,6 @@ import {
 import { doc, setDoc } from 'firebase/firestore';
 
 export default function Login() {
-
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,40 +19,31 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // ✅ UI MESSAGE STATE (no alerts)
+  // ✅ UI MESSAGE STATE
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const handleAuth = async (e) => {
-
     e.preventDefault();
-
     setLoading(true);
     setError('');
     setSuccess('');
 
     try {
-
       await setPersistence(auth, browserLocalPersistence);
 
       // ================= LOGIN =================
       if (isLogin) {
-
         await signInWithEmailAndPassword(auth, email, password);
-
         setSuccess("Login successful");
-
-      }
-
+      } 
       // ================= SIGNUP =================
       else {
-
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
-
         const user = userCredential.user;
 
         await setDoc(doc(db, "technicians", user.uid), {
@@ -65,126 +55,146 @@ export default function Login() {
         });
 
         setSuccess("Account created successfully!");
-
         setIsLogin(true);
-
         setFullName('');
         setPhone('');
         setEmail('');
         setPassword('');
       }
-
     } catch (err) {
-
       console.error(err);
-
-      // ✅ Clean error message instead of alert
       setError(
         err?.message?.replace("Firebase:", "") ||
         "Something went wrong. Try again."
       );
-
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col px-8 relative overflow-hidden">
+    <div className="min-h-screen flex font-sans bg-white">
 
-      {/* Background */}
-      <div className="absolute -top-12 -right-16 w-64 h-64 bg-red-100/50 rounded-[3rem] rotate-12 z-0"></div>
-      <div className="absolute -top-20 -right-12 w-56 h-56 bg-[#C82327] rounded-[2.5rem] rotate-12 shadow-2xl z-0"></div>
-      <div className="absolute -bottom-32 -right-24 w-96 h-96 bg-[#C82327] rounded-full opacity-90 z-0"></div>
+      {/* ================= LEFT PANEL (BRANDING) ================= */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#C82327] text-white relative overflow-hidden flex-col justify-between p-16">
+        
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-red-600 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-red-900 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col max-w-md w-full z-10 pb-24 relative pt-16">
-
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-          {isLogin ? 'Login' : 'Sign Up'}
-        </h1>
-
-        <p className="text-gray-500 mb-6 font-medium">
-          Techno Steel Industries
-        </p>
-
-        {/* ✅ ERROR / SUCCESS UI */}
-        {error && (
-          <div className="mb-3 text-sm font-medium text-red-600 bg-red-50 p-3 rounded-xl">
-            {error}
+        <div className="relative z-10 mt-12">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-8 shadow-xl">
+            <Briefcase className="w-8 h-8 text-[#C82327]" />
           </div>
-        )}
+          <h1 className="text-5xl font-black mb-6 tracking-tight leading-tight">
+            Techno Steel <br /> Industries
+          </h1>
+          <p className="text-red-100 text-lg font-medium max-w-md leading-relaxed">
+            Manage your services, track technicians, and streamline your operational workflow seamlessly.
+          </p>
+        </div>
 
-        {success && (
-          <div className="mb-3 text-sm font-medium text-green-600 bg-green-50 p-3 rounded-xl">
-            {success}
+        <div className="relative z-10 text-red-200 text-sm font-bold tracking-widest uppercase mb-12">
+          Staff & Admin Portal
+        </div>
+      </div>
+
+      {/* ================= RIGHT PANEL (FORM) ================= */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24 bg-[#FAFAFA]">
+        <div className="max-w-md w-full mx-auto">
+          
+          {/* Mobile Logo (Visible only on small screens) */}
+          <div className="lg:hidden w-14 h-14 bg-[#C82327] rounded-xl flex items-center justify-center mb-8 shadow-lg">
+            <Briefcase className="w-7 h-7 text-white" />
           </div>
-        )}
 
-        <form onSubmit={handleAuth} className="space-y-4">
+          <div className="mb-10">
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </h2>
+            <p className="text-gray-500 font-medium">
+              {isLogin ? 'Please enter your details to sign in.' : 'Fill in your details to get started.'}
+            </p>
+          </div>
 
-          {!isLogin && (
-            <>
-              <Input
-                icon={<User />}
-                type="text"
-                placeholder="Full Name"
-                value={fullName}
-                onChange={setFullName}
-              />
-
-              <Input
-                icon={<Phone />}
-                type="tel"
-                placeholder="Phone Number"
-                value={phone}
-                onChange={setPhone}
-              />
-            </>
+          {/* Alerts */}
+          {error && (
+            <div className="mb-6 text-sm font-bold text-red-600 bg-red-50 px-5 py-4 rounded-xl border border-red-100">
+              {error}
+            </div>
           )}
 
-          <Input
-            icon={<Mail />}
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={setEmail}
-          />
+          {success && (
+            <div className="mb-6 text-sm font-bold text-emerald-600 bg-emerald-50 px-5 py-4 rounded-xl border border-emerald-100">
+              {success}
+            </div>
+          )}
 
-          <Input
-            icon={<Lock />}
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={setPassword}
-          />
+          <form onSubmit={handleAuth} className="space-y-5">
+            {!isLogin && (
+              <>
+                <Input
+                  icon={<User className="w-5 h-5" />}
+                  type="text"
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChange={setFullName}
+                />
+                <Input
+                  icon={<Phone className="w-5 h-5" />}
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={phone}
+                  onChange={setPhone}
+                />
+              </>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-[#C82327] text-white py-4 rounded-full font-bold shadow-lg shadow-red-900/30 active:scale-95 transition-all mt-4 disabled:opacity-70"
-          >
-            {loading ? 'Processing...' : (isLogin ? 'LOGIN' : 'SIGN UP')}
-            <ArrowRight className="w-5 h-5" />
-          </button>
+            <Input
+              icon={<Mail className="w-5 h-5" />}
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              onChange={setEmail}
+            />
 
-        </form>
+            <Input
+              icon={<Lock className="w-5 h-5" />}
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={setPassword}
+            />
 
-        {/* Toggle */}
-        <button
-          onClick={() => {
-            setIsLogin(!isLogin);
-            setError('');
-            setSuccess('');
-          }}
-          className="mt-6 text-sm font-bold text-[#C82327] text-center w-full"
-        >
-          {isLogin
-            ? "Don't have an account? Sign Up"
-            : "Already have an account? Login"
-          }
-        </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#C82327] text-white py-4 rounded-xl font-bold text-sm shadow-md hover:bg-red-800 active:scale-[0.98] transition-all mt-8 disabled:opacity-70 disabled:active:scale-100"
+            >
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
+              {!loading && <ArrowRight className="w-4 h-4" />}
+            </button>
+          </form>
 
+          {/* Toggle link */}
+          <div className="mt-10 text-center">
+            <p className="text-sm font-medium text-gray-500">
+              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="text-[#C82327] font-bold hover:underline focus:outline-none transition-colors"
+              >
+                {isLogin ? 'Sign Up' : 'Sign In'}
+              </button>
+            </p>
+          </div>
+
+        </div>
       </div>
 
     </div>
@@ -192,24 +202,19 @@ export default function Login() {
 }
 
 // ================= INPUT COMPONENT =================
-
+// Designed with a flat, clean bottom-border style to avoid the "card" look
 const Input = ({ icon, type, placeholder, value, onChange }) => (
-
-  <div className="bg-white flex items-center px-4 py-1 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 focus-within:ring-2 focus-within:ring-[#C82327]/20">
-
-    <div className="text-gray-400 mr-3">
+  <div className="flex items-center border-b-2 border-gray-200 py-3 focus-within:border-[#C82327] transition-colors group">
+    <div className="text-gray-400 mr-4 shrink-0 group-focus-within:text-[#C82327] transition-colors">
       {icon}
     </div>
-
     <input
       type={type}
       required
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full py-3 text-gray-900 font-medium bg-transparent focus:outline-none"
+      className="w-full py-2 text-base text-gray-900 font-semibold bg-transparent focus:outline-none placeholder:font-medium placeholder:text-gray-400"
       placeholder={placeholder}
     />
-
   </div>
-
 );

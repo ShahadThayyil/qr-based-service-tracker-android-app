@@ -34,7 +34,7 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col relative overflow-x-hidden">
 
       {/* ================= HEADER ================= */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+      <header className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-md px-6 py-4 border-b border-gray-100 flex justify-between items-center">
 
         {/* LOGO */}
         <div className="flex items-center gap-2">
@@ -58,7 +58,8 @@ export default function AdminLayout() {
       </header>
 
       {/* ================= PAGE CONTENT ================= */}
-      <div className="flex-1 w-full pb-24">
+      {/* Added pt-20 here to prevent content from hiding behind the fixed header */}
+      <div className="flex-1 w-full pt-20 pb-24">
         <Outlet />
       </div>
 

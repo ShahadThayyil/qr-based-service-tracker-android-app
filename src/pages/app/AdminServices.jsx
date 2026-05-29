@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Search, Download, Calendar, Wrench, CheckCircle, Clock, Repeat, History, Package, IndianRupee, MessageCircle, User, LayoutList, Send, Trash2, Phone } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -156,13 +155,11 @@ export default function AdminServices() {
     }
   };
 
-  const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
-  const itemVariant = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } };
-
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
       <div className="bg-white sticky top-0 z-30 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border-b border-gray-100">
-        <div className="bg-[#C82327] px-4 pt-12 pb-6 relative overflow-hidden rounded-b-3xl">
+        {/* Header - removed rounded-b-3xl */}
+        <div className="bg-[#C82327] px-4 pt-12 pb-6 relative overflow-hidden">
           <div className="absolute top-[-20%] right-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           <div className="relative z-10 flex justify-between items-center">
             <div>
@@ -190,7 +187,7 @@ export default function AdminServices() {
 
       <div className="flex-1 overflow-y-auto pb-24">
         {activeSection !== 'pending_msg' && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white mx-4 mt-4 p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-gray-50 overflow-hidden min-h-[112px]">
+          <div className="bg-white mx-4 mt-4 p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-gray-50 overflow-hidden min-h-[112px]">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-sm font-bold text-gray-900">Current View Status</h2>
               <button onClick={exportToExcel} className="flex items-center gap-1.5 bg-gray-900 text-white px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider active:scale-95 transition-all shadow-sm">
@@ -203,13 +200,13 @@ export default function AdminServices() {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#9CA3AF', fontWeight: 'bold' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
                   <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={24}>
+                  <Bar isAnimationActive={false} dataKey="count" radius={[4, 4, 0, 0]} barSize={24}>
                     {chartData.map((e, i) => <Cell key={i} fill={e.color} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </motion.div>
+          </div>
         )}
 
         <div className="px-4 py-4 space-y-3">
@@ -218,11 +215,10 @@ export default function AdminServices() {
             <input type="text" placeholder="Search ID, name, or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white shadow-sm text-sm font-medium pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 border border-gray-100" />
           </div>
 
-          <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
+          <div className="space-y-3">
             {filteredServices.map(service => (
-              <motion.div 
+              <div 
                 key={service.id} 
-                variants={itemVariant} 
                 onClick={() => activeSection !== 'pending_msg' && navigate(`/admin/service/${service.id}`)} 
                 className={`p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border transition-transform ${getCardStyle(service.status)} ${activeSection !== 'pending_msg' ? 'active:scale-[0.98] cursor-pointer' : ''}`}
               >
@@ -241,7 +237,7 @@ export default function AdminServices() {
                   </div>
                 </div>
 
-                {/* 🚀 NEW DETAILS GRID */}
+                {/* DETAILS GRID */}
                 <div className="grid grid-cols-2 gap-y-2 mt-3 text-xs font-medium border-t border-gray-200/50 pt-3">
                   <div className="text-gray-500">
                     Item: <span className="text-gray-900 font-bold ml-1">{service.productType || service.item || 'N/A'}</span>
@@ -269,7 +265,7 @@ export default function AdminServices() {
                   </button>
                 )}
                 
-              </motion.div>
+              </div>
             ))}
             {filteredServices.length === 0 && (
                <div className="text-center py-10">
@@ -277,7 +273,7 @@ export default function AdminServices() {
                  <p className="text-xs font-bold text-gray-400">No active services found.</p>
                </div>
             )}
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>
