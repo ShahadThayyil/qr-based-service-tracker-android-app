@@ -13,7 +13,7 @@ import AdminLayout from './components/AdminLayout';
 import TechLayout from './components/TechLayout';
 
 // Admin Pages
-import Login from './pages/app/login';
+import Login from './pages/app/Login';
 import AdminDashboard from './pages/app/AdminDashboard';
 import AdminServices from './pages/app/AdminServices';
 import AdminNewIntake from './pages/app/AdminNewIntake';
@@ -163,7 +163,7 @@ if (checkingAuth) {
       <div className="w-14 h-14 border-4 border-[#C82327] border-t-transparent rounded-full animate-spin"></div>
 
       <p className="mt-5 text-sm font-bold text-gray-500">
-        Loading Techno Steel...
+        Loading Techno Steel Qr Manager...
       </p>
 
     </div>

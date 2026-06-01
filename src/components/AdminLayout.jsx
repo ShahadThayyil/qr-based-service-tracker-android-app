@@ -39,13 +39,11 @@ export default function AdminLayout() {
         {/* LOGO */}
         <div className="flex items-center gap-2">
           <img
-            src="/logo.png"
+            src="https://res.cloudinary.com/dmtzmgbkj/image/upload/v1780389055/gr3hhut9ld3k0dp00mhe-removebg-preview_cgqsfv.png"
             alt="Company Logo"
-            className="w-9 h-9 object-contain rounded-lg"
-          />
-          <span className="font-bold text-gray-900 tracking-tight">
-            Techno Steel
-          </span>
+            className="h-16 w-18 object-contain rounded-lg"
+          /> 
+         
         </div>
 
         <button

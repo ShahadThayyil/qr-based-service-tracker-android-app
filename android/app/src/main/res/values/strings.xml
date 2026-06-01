@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Techno</string>
-    <string name="title_activity_main">android</string>
+    <string name="title_activity_main">Techno</string>
     <string name="package_name">com.techno.app</string>
     <string name="custom_url_scheme">com.techno.app</string>
 </resources>
