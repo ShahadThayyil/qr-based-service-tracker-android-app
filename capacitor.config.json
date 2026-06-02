@@ -2,6 +2,7 @@
   "appId": "com.techno.app",
   "appName": "Techno",
   "webDir": "dist",
+
   "plugins": {
     "CapacitorCookies": {
       "enabled": true

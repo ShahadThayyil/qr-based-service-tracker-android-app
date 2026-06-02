@@ -80,10 +80,10 @@ export default function TechScanner() {
         body: data
       }
     );
-
+    
     const uploaded = await res.json();
     console.log(uploaded);
-
+    
     if (!uploaded.secure_url) {
       throw new Error(
         uploaded.error?.message || 'Cloudinary upload failed'
@@ -91,14 +91,14 @@ export default function TechScanner() {
     }
     return uploaded.secure_url;
   };
-
+  
   // =========================
   // START SCANNER
   // =========================
   useEffect(() => {
     if (scannerStarted.current) return;
     scannerStarted.current = true;
-
+    
     const startScanner = async () => {
       try {
         const { camera } = await BarcodeScanner.requestPermissions();
@@ -108,9 +108,9 @@ export default function TechScanner() {
           navigate(-1);
           return;
         }
-
+        
         const result = await BarcodeScanner.scan();
-
+        
         // CANCEL
         if (!result?.barcodes?.length) {
           navigate(-1);
@@ -123,13 +123,14 @@ export default function TechScanner() {
         // CURRENT USER
         // =========================
         const currentUser = auth.currentUser;
-        let technicianName = '';
-        let technicianPhone = '';
+        let technicianName = 'admin';
+        let technicianPhone = '9846333952';
+        console.log("Technician Name:", technicianName);
 
         if (currentUser) {
           const techRef = doc(db, 'technicians', currentUser.uid);
           const techSnap = await getDoc(techRef);
-
+          
           if (techSnap.exists()) {
             const techData = techSnap.data();
             technicianName = techData.fullName || '';
@@ -153,7 +154,7 @@ export default function TechScanner() {
             technicianName &&
             existingData.techName !== technicianName;
           setIsOtherTech(otherTechClaimed);
-
+console.log("Technician Phone:", technicianPhone);
           setFormData((prev) => ({
             ...prev,
             ...existingData,
@@ -564,6 +565,7 @@ export default function TechScanner() {
 
               {/* TECH INFO */}
               <div className="grid grid-cols-2 gap-3">
+                {console.log("It's the tesslfjldsfjk j  " , formData.techName)}
                 <input
                   type="text"
                   value={formData.techName}
