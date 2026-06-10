@@ -152,179 +152,247 @@ export default function TechScanner() {
   // START SCANNER
   // =========================
   
-  useEffect(() => {
-    if (scannerStarted.current) return;
+useEffect(() => {
+  if (scannerStarted.current) return;
 
-    scannerStarted.current = true;
+  scannerStarted.current = true;
 
-    const startScanner = async () => {
-      try {
-        const { camera } =
-          await BarcodeScanner.requestPermissions();
+  const startScanner = async () => {
+    try {
+      // Permission
+      const { camera } =
+        await BarcodeScanner.requestPermissions();
 
-        if (camera !== 'granted') {
-          alert(
-            'Camera permission denied'
-          );
+      if (camera !== "granted") {
+        alert("Camera permission denied");
+        navigate("/dashboard/tasks");
+        return;
+      }
 
-          navigate('/dashboard/tasks');
+      // Check scanner module
+      const available =
+        await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
 
-          return;
-        }
+      console.log(
+        "Scanner Module Available:",
+        available
+      );
 
-        const result =
-          await BarcodeScanner.scan();
-
-        // CANCEL
-        if (
-          !result?.barcodes?.length
-        ) {
-          navigate('/dashboard/tasks');
-
-          return;
-        }
-
-        const scannedId =
-          result.barcodes[0].rawValue;
-
-        // =========================
-        // CURRENT USER
-        // =========================
-        const currentUser =
-          auth.currentUser;
-
-        let technicianName = '';
-        let technicianPhone = '';
-
-        if (currentUser) {
-          const techRef = doc(
-            db,
-            'technicians',
-            currentUser.uid
-          );
-
-          const techSnap =
-            await getDoc(techRef);
-
-          if (techSnap.exists()) {
-            const techData =
-              techSnap.data();
-
-            technicianName =
-              techData.fullName || '';
-
-            technicianPhone =
-              techData.phone || '';
-          }
-        }
-
-        // =========================
-        // CHECK SERVICE
-        // =========================
-        const serviceRef = doc(
-          db,
-          'services',
-          scannedId
+      if (!available.available) {
+        alert(
+          "Downloading scanner module...\nPlease wait."
         );
 
-        const serviceSnap =
-          await getDoc(serviceRef);
+        await BarcodeScanner.installGoogleBarcodeScannerModule();
 
-        // EXISTING
-        if (serviceSnap.exists()) {
-          const existingData =
-            serviceSnap.data();
+        // Re-check after install
+        const recheck =
+          await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
 
-          // Check if existing task belongs to someone else
-          const otherTechClaimed = existingData.techName && technicianName && existingData.techName !== technicianName;
-          setIsOtherTech(otherTechClaimed);
+        console.log(
+          "Scanner Module Recheck:",
+          recheck
+        );
 
-          setFormData(prev => ({
-            ...prev,
-            ...existingData,
-            id: scannedId,
-            status: existingData?.status ?? 'pending',            
-            receivedAt:
-              existingData.receivedAt ||
-              new Date().toISOString().split('T')[0],
-
-            completedAt:
-              existingData.completedAt || '',
-            techName:
-              otherTechClaimed ? existingData.techName : (existingData.techName || technicianName),
-
-            techPhone:
-              otherTechClaimed ? existingData.techPhone : (existingData.techPhone || technicianPhone),
-
-            images: (existingData.images || [])
-              .map(img => typeof img === 'string' ? img : img?.secure_url || img?.url)
-              .filter(Boolean),
-
-            inspectionPoints:
-              existingData.inspectionPoints ||
-              []
-          }));
-
-          setScanResult('existing');
+        if (!recheck.available) {
+          throw new Error(
+            "Google Barcode Scanner module installation failed. Please update Google Play Services."
+          );
         }
+      }
 
-        
-        // NEW
-        else {
+      // Start scanning
+      const result =
+        await BarcodeScanner.scan();
 
-          const today =
+      console.log(
+        "Scan Result:",
+        result
+      );
+
+      // No QR found
+      if (!result?.barcodes?.length) {
+        alert("No QR code detected");
+        return;
+      }
+
+      const scannedId =
+        result.barcodes[0]?.rawValue;
+
+      if (!scannedId) {
+        alert("Invalid QR code");
+        return;
+      }
+
+      console.log(
+        "Scanned ID:",
+        scannedId
+      );
+
+      // =========================
+      // CURRENT USER
+      // =========================
+
+      const currentUser =
+        auth.currentUser;
+
+      let technicianName = "";
+      let technicianPhone = "";
+
+      if (currentUser) {
+        const techRef = doc(
+          db,
+          "technicians",
+          currentUser.uid
+        );
+
+        const techSnap =
+          await getDoc(techRef);
+
+        if (techSnap.exists()) {
+          const techData =
+            techSnap.data();
+
+          technicianName =
+            techData.fullName || "";
+
+          technicianPhone =
+            techData.phone || "";
+        }
+      }
+
+      // =========================
+      // SERVICE CHECK
+      // =========================
+
+      const serviceRef = doc(
+        db,
+        "services",
+        scannedId
+      );
+
+      const serviceSnap =
+        await getDoc(serviceRef);
+
+      if (serviceSnap.exists()) {
+        const existingData =
+          serviceSnap.data();
+
+        const otherTechClaimed =
+          existingData.techName &&
+          technicianName &&
+          existingData.techName !==
+            technicianName;
+
+        setIsOtherTech(
+          otherTechClaimed
+        );
+
+        setFormData((prev) => ({
+          ...prev,
+          ...existingData,
+          id: scannedId,
+          status:
+            existingData?.status ??
+            "pending",
+
+          receivedAt:
+            existingData.receivedAt ||
             new Date()
               .toISOString()
-              .split('T')[0];
+              .split("T")[0],
 
-          setIsOtherTech(false);
+          completedAt:
+            existingData.completedAt ||
+            "",
 
-          setFormData(prev => ({
-            ...prev,
-            id: scannedId,
+          techName:
+            otherTechClaimed
+              ? existingData.techName
+              : existingData.techName ||
+                technicianName,
 
-            status: 'pending',
+          techPhone:
+            otherTechClaimed
+              ? existingData.techPhone
+              : existingData.techPhone ||
+                technicianPhone,
 
-            receivedAt: today,
+          images:
+            (
+              existingData.images ||
+              []
+            )
+              .map((img) =>
+                typeof img === "string"
+                  ? img
+                  : img?.secure_url ||
+                    img?.url
+              )
+              .filter(Boolean),
 
-            completedAt: '',
+          inspectionPoints:
+            existingData.inspectionPoints ||
+            []
+        }));
 
-            techName: technicianName,
+        setScanResult("existing");
+      } else {
+        const today =
+          new Date()
+            .toISOString()
+            .split("T")[0];
 
-            techPhone: technicianPhone,
+        setIsOtherTech(false);
 
-            customerName: '',
+        setFormData((prev) => ({
+          ...prev,
+          id: scannedId,
+          status: "pending",
+          receivedAt: today,
+          completedAt: "",
+          techName: technicianName,
+          techPhone: technicianPhone,
+          customerName: "",
+          customerPhone: "",
+          customerLocation: "",
+          productBrand: "",
+          productType: "",
+          problem: "",
+          amount: "",
+          images: [],
+          inspectionPoints: [],
+          createdAt: null
+        }));
 
-            customerPhone: '',
-
-            customerLocation: '',
-
-            productBrand: '',
-
-            productType: '',
-
-            problem: '',
-
-            amount: '',
-
-            images: [],
-
-            inspectionPoints: [],
-
-            createdAt: null
-          }));
-
-          setScanResult('new');
-        }
-      } catch (err) {
-        console.error(err);
-
-        navigate('/dashboard/tasks');
+        setScanResult("new");
       }
-    };
+    } catch (err) {
+      console.error(
+        "Scanner Error:",
+        err
+      );
 
-    startScanner();
-  }, [navigate]);
+      let message =
+        "Scanner failed";
+
+      if (
+        err?.message?.includes(
+          "Google Barcode Scanner"
+        )
+      ) {
+        message =
+          "Please update Google Play Services and try again.";
+      } else if (err?.message) {
+        message = err.message;
+      }
+
+      alert(message);
+    }
+  };
+
+  startScanner();
+}, [navigate]);
 
   // =========================
   // HANDLE INPUT

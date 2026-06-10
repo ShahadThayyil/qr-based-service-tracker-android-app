@@ -210,9 +210,30 @@ export default function AdminServices() {
         )}
 
         <div className="px-4 py-4 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search ID, name, or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white shadow-sm text-sm font-medium pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 border border-gray-100" />
+          
+          {/* SEARCH AND STATUS FILTER CONTAINER */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search ID, name, or phone..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                className="w-full bg-white shadow-sm text-sm font-medium pl-10 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 border border-gray-100" 
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-white shadow-sm text-xs font-bold px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C82327]/20 border border-gray-100 text-gray-600 outline-none cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="delivered">Delivered</option>
+            </select>
           </div>
 
           <div className="space-y-3">
